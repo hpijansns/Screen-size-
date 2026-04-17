@@ -3,60 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Share Screen with Admin</title>
+    <title>Share Camera with Admin</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f7f6; text-align: center; padding: 50px; }
-        .card { background: white; padding: 40px; border-radius: 12px; box-shadow: 0px 4px 20px rgba(0,0,0,0.1); display: inline-block; max-width: 500px; }
-        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; transition: 0.3s; }
+        body { font-family: Arial, sans-serif; background: #f4f7f6; text-align: center; padding: 20px; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0px 4px 20px rgba(0,0,0,0.1); max-width: 400px; margin: auto; margin-top: 20px; }
+        button { padding: 15px; font-size: 16px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; width: 100%; transition: 0.3s; }
         button:hover { background: #218838; }
         button:disabled { background: #ccc; cursor: not-allowed; }
-        #status { margin-top: 20px; font-size: 16px; font-weight: bold; color: #555; }
+        #status { margin-top: 15px; font-size: 15px; font-weight: bold; color: #555; }
+        /* Mobile par user ko khud ka camera dekhne ke liye */
+        video { width: 100%; border-radius: 8px; margin-top: 15px; background: #000; display: none; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Admin is Requesting Screen Access</h2>
-        <p>अपनी स्क्रीन शेयर करने के लिए नीचे दिए गए बटन पर क्लिक करें और परमिशन <strong>Allow</strong> करें।</p>
-        <button id="share-btn" onclick="startSharing()">Start Sharing Screen</button>
+        <h2>📷 Live Camera Access</h2>
+        <p>Admin के साथ अपना लाइव कैमरा शेयर करने के लिए नीचे क्लिक करें और परमिशन <strong>Allow</strong> करें।</p>
+        
+        <button id="share-btn" onclick="startCamera()">Start Camera</button>
         <p id="status"></p>
+        
+        <video id="my-video" autoplay muted playsinline></video>
     </div>
 
     <script>
-        // URL se Admin ki ID nikalna
         const urlParams = new URLSearchParams(window.location.search);
         const adminId = urlParams.get('admin');
         const peer = new Peer();
 
         if (!adminId) {
-            document.getElementById('status').innerText = "❌ Error: Link invalid hai. Admin ID nahi mili.";
+            document.getElementById('status').innerText = "❌ Error: Admin ID नहीं मिली। लिंक अमान्य है।";
             document.getElementById('status').style.color = "red";
             document.getElementById('share-btn').disabled = true;
         }
 
-        async function startSharing() {
+        async function startCamera() {
             try {
-                // User ki screen record karne ki permission mangna
-                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-                document.getElementById('status').innerText = "⏳ Connecting to Admin...";
+                document.getElementById('status').innerText = "⏳ Camera Permission की प्रतीक्षा कर रहा है...";
+                
+                // User Media (Camera & Audio) Access
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user" }, // "user" का मतलब है Front Camera
+                    audio: true 
+                });
+                
+                // User को खुद का वीडियो दिखाना
+                const myVideo = document.getElementById('my-video');
+                myVideo.srcObject = stream;
+                myVideo.style.display = "block";
 
-                // Admin ko call lagana aur stream bhejna
+                document.getElementById('status').innerText = "⏳ Admin से कनेक्ट हो रहा है...";
+                
+                // Admin को Stream भेजना
                 const call = peer.call(adminId, stream);
 
-                document.getElementById('status').innerText = "✅ Screen is Live! Admin apki screen dekh rahe hain.";
+                document.getElementById('status').innerText = "✅ Camera Live है! Admin आपको देख सकते हैं।";
                 document.getElementById('status').style.color = "green";
-                document.getElementById('share-btn').style.display = "none"; // Button hide kar do
-
-                // Agar user "Stop Sharing" daba de browser me
-                stream.getVideoTracks()[0].onended = function () {
-                    document.getElementById('status').innerText = "🛑 Screen sharing stopped.";
-                    document.getElementById('status').style.color = "red";
-                    document.getElementById('share-btn').style.display = "inline-block";
-                };
+                document.getElementById('share-btn').style.display = "none";
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('status').innerText = "❌ Permission denied. Kripya screen share allow karein.";
+                document.getElementById('status').innerText = "❌ Permission denied. कृपया कैमरा और माइक allow करें।";
                 document.getElementById('status').style.color = "red";
             }
         }
