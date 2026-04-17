@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Share Camera with Admin</title>
+    <title>Live Camera Share</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background: #f4f7f6; text-align: center; padding: 20px; margin: 0; }
@@ -12,17 +12,16 @@
         button:hover { background: #218838; }
         button:disabled { background: #ccc; cursor: not-allowed; }
         #status { margin-top: 15px; font-size: 15px; font-weight: bold; color: #555; }
-        /* Mobile par user ko khud ka camera dekhne ke liye */
         video { width: 100%; border-radius: 8px; margin-top: 15px; background: #000; display: none; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>📷 Live Camera Access</h2>
-        <p>Admin के साथ अपना लाइव कैमरा शेयर करने के लिए नीचे क्लिक करें और परमिशन <strong>Allow</strong> करें।</p>
+        <h2>📷 Live Camera</h2>
+        <p>अपना लाइव कैमरा शेयर करने के लिए नीचे क्लिक करें।</p>
         
         <button id="share-btn" onclick="startCamera()">Start Camera</button>
-        <p id="status"></p>
+        <p id="status">Waiting for action...</p>
         
         <video id="my-video" autoplay muted playsinline></video>
     </div>
@@ -30,10 +29,19 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const adminId = urlParams.get('admin');
-        const peer = new Peer();
+        
+        // Match settings with Admin
+        const peer = new Peer({
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            }
+        });
 
         if (!adminId) {
-            document.getElementById('status').innerText = "❌ Error: Admin ID नहीं मिली। लिंक अमान्य है।";
+            document.getElementById('status').innerText = "❌ Error: Admin ID नहीं मिली।";
             document.getElementById('status').style.color = "red";
             document.getElementById('share-btn').disabled = true;
         }
@@ -42,32 +50,36 @@
             try {
                 document.getElementById('status').innerText = "⏳ Camera Permission की प्रतीक्षा कर रहा है...";
                 
-                // User Media (Camera & Audio) Access
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user" }, // "user" का मतलब है Front Camera
+                    video: { facingMode: "user" }, 
                     audio: true 
                 });
                 
-                // User को खुद का वीडियो दिखाना
                 const myVideo = document.getElementById('my-video');
                 myVideo.srcObject = stream;
                 myVideo.style.display = "block";
 
                 document.getElementById('status').innerText = "⏳ Admin से कनेक्ट हो रहा है...";
                 
-                // Admin को Stream भेजना
-                const call = peer.call(adminId, stream);
+                // Call admin ID
+                peer.call(adminId, stream);
 
-                document.getElementById('status').innerText = "✅ Camera Live है! Admin आपको देख सकते हैं।";
+                document.getElementById('status').innerText = "✅ Camera Live है!";
                 document.getElementById('status').style.color = "green";
                 document.getElementById('share-btn').style.display = "none";
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('status').innerText = "❌ Permission denied. कृपया कैमरा और माइक allow करें।";
+                document.getElementById('status').innerText = "❌ Permission denied. कैमरा allow करें।";
                 document.getElementById('status').style.color = "red";
             }
         }
+
+        peer.on('error', (err) => {
+            console.error(err);
+            document.getElementById('status').innerText = `❌ Connection Error: ${err.type}`;
+            document.getElementById('status').style.color = "red";
+        });
     </script>
 </body>
 </html>
