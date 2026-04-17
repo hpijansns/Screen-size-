@@ -6,22 +6,25 @@
     <title>Live Camera Share</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f7f6; text-align: center; padding: 20px; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0px 4px 20px rgba(0,0,0,0.1); max-width: 400px; margin: auto; margin-top: 20px; }
-        button { padding: 15px; font-size: 16px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 8px; font-weight: bold; width: 100%; transition: 0.3s; }
-        button:hover { background: #218838; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        #status { margin-top: 15px; font-size: 15px; font-weight: bold; color: #555; }
-        video { width: 100%; border-radius: 8px; margin-top: 15px; background: #000; display: none; }
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f4f8; text-align: center; padding: 20px; margin: 0; color: #333; }
+        .card { background: #fff; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); max-width: 400px; margin: 40px auto; }
+        h2 { color: #2c3e50; margin-top: 0; }
+        p { color: #666; font-size: 15px; line-height: 1.5; }
+        button { padding: 16px; font-size: 18px; cursor: pointer; background: #27ae60; color: white; border: none; border-radius: 8px; font-weight: bold; width: 100%; transition: 0.3s; margin-top: 10px; }
+        button:hover { background: #219150; box-shadow: 0 4px 12px rgba(39, 174, 96, 0.3); }
+        button:disabled { background: #bdc3c7; cursor: not-allowed; box-shadow: none; }
+        #status { margin-top: 20px; font-size: 16px; font-weight: bold; padding: 10px; border-radius: 6px; }
+        video { width: 100%; border-radius: 10px; margin-top: 20px; background: #000; display: none; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>📷 Live Camera</h2>
-        <p>अपना लाइव कैमरा शेयर करने के लिए नीचे क्लिक करें।</p>
+        <h2>📷 Secure Video Access</h2>
+        <p>व्यवस्थापक (Admin) के साथ अपना लाइव कैमरा शेयर करने के लिए नीचे दिए गए बटन पर क्लिक करें और <strong>Allow</strong> चुनें।</p>
         
         <button id="share-btn" onclick="startCamera()">Start Camera</button>
-        <p id="status">Waiting for action...</p>
+        <div id="status" style="color: #f39c12;">Waiting for user action...</div>
         
         <video id="my-video" autoplay muted playsinline></video>
     </div>
@@ -29,8 +32,9 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const adminId = urlParams.get('admin');
+        const statusEl = document.getElementById('status');
+        const shareBtn = document.getElementById('share-btn');
         
-        // Match settings with Admin
         const peer = new Peer({
             config: {
                 'iceServers': [
@@ -41,14 +45,17 @@
         });
 
         if (!adminId) {
-            document.getElementById('status').innerText = "❌ Error: Admin ID नहीं मिली।";
-            document.getElementById('status').style.color = "red";
-            document.getElementById('share-btn').disabled = true;
+            statusEl.innerText = "❌ Error: Admin ID is missing from URL.";
+            statusEl.style.color = "#e74c3c";
+            shareBtn.disabled = true;
         }
 
         async function startCamera() {
             try {
-                document.getElementById('status').innerText = "⏳ Camera Permission की प्रतीक्षा कर रहा है...";
+                shareBtn.innerText = "Requesting Access...";
+                shareBtn.disabled = true;
+                statusEl.innerText = "⏳ Please allow camera permission...";
+                statusEl.style.color = "#f39c12";
                 
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: "user" }, 
@@ -59,26 +66,29 @@
                 myVideo.srcObject = stream;
                 myVideo.style.display = "block";
 
-                document.getElementById('status').innerText = "⏳ Admin से कनेक्ट हो रहा है...";
+                statusEl.innerText = "⏳ Connecting to Admin...";
                 
-                // Call admin ID
                 peer.call(adminId, stream);
 
-                document.getElementById('status').innerText = "✅ Camera Live है!";
-                document.getElementById('status').style.color = "green";
-                document.getElementById('share-btn').style.display = "none";
+                statusEl.innerText = "✅ You are Live!";
+                statusEl.style.color = "#27ae60";
+                statusEl.style.background = "#eafaf1";
+                shareBtn.style.display = "none";
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('status').innerText = "❌ Permission denied. कैमरा allow करें।";
-                document.getElementById('status').style.color = "red";
+                statusEl.innerText = "❌ Permission denied. Please allow camera access.";
+                statusEl.style.color = "#e74c3c";
+                statusEl.style.background = "#fdedec";
+                shareBtn.innerText = "Try Again";
+                shareBtn.disabled = false;
             }
         }
 
         peer.on('error', (err) => {
             console.error(err);
-            document.getElementById('status').innerText = `❌ Connection Error: ${err.type}`;
-            document.getElementById('status').style.color = "red";
+            statusEl.innerText = `❌ Connection Error: ${err.type}`;
+            statusEl.style.color = "#e74c3c";
         });
     </script>
 </body>
