@@ -3,45 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - Live Screen</title>
+    <title>Admin Panel - Live Camera</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 20px; }
         .container { max-width: 900px; margin: auto; background: #1e1e1e; padding: 20px; border-radius: 12px; box-shadow: 0px 4px 15px rgba(0,0,0,0.5); }
-        .link-box { background: #2d2d2d; padding: 15px; border-radius: 8px; margin: 20px 0; }
+        .link-box { background: #2d2d2d; padding: 15px; border-radius: 8px; margin: 15px 0; }
         input { width: 70%; padding: 10px; font-size: 14px; text-align: center; border-radius: 5px; border: 1px solid #444; background: #333; color: white; }
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; margin-left: 10px; }
         button:hover { background: #0056b3; }
-        video { width: 100%; max-height: 600px; background: #000; margin-top: 20px; border-radius: 8px; border: 2px solid #007bff; }
+        video { width: 100%; max-height: 550px; background: #000; margin-top: 15px; border-radius: 8px; border: 2px solid #007bff; }
         #status { font-weight: bold; color: orange; }
+        #log-box { margin-top: 20px; background: #000; color: #00ff00; font-family: monospace; padding: 10px; text-align: left; height: 120px; overflow-y: auto; border-radius: 5px; font-size: 13px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>💻 Admin Panel (Screen Viewer)</h2>
+        <h2>💻 Admin Panel (Live Viewer)</h2>
         <p>Status: <span id="status">Connecting to server...</span></p>
 
         <div class="link-box" id="link-container" style="display: none;">
-            <p><strong>यह लिंक कॉपी करें और User को भेजें:</strong></p>
+            <p><strong>यह लिंक कॉपी करें और मोबाइल में Incognito Mode में खोलें:</strong></p>
             <input type="text" id="share-link" readonly>
             <button onclick="copyLink()">Copy Link</button>
         </div>
 
-        <h3>🔴 Live User Screen:</h3>
-        <video id="remote-video" autoplay playsinline controls></video>
+        <video id="remote-video" autoplay playsinline muted controls></video>
+
+        <div id="log-box">Log Viewer Started...<br></div>
     </div>
 
     <script>
-        const peer = new Peer();
+        function log(msg) {
+            const logBox = document.getElementById('log-box');
+            logBox.innerHTML += `> ${msg}<br>`;
+            logBox.scrollTop = logBox.scrollHeight;
+            console.log(msg);
+        }
+
+        // Google ke free STUN servers network issue solve karne ke liye
+        const peer = new Peer({
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' }
+                ]
+            }
+        });
+        
         let myAdminId = "";
 
-        // Admin ID Generate aur Link Setup
         peer.on('open', (id) => {
             myAdminId = id;
-            document.getElementById('status').innerText = "Online - Ready to receive screen";
+            log(`✅ Server Connected! Admin ID: ${id}`);
+            document.getElementById('status').innerText = "Online - Ready to receive video";
             document.getElementById('status').style.color = "#00ff00";
 
-            // Get current GitHub Pages URL base and append share.html with admin ID
             let currentUrl = window.location.href.split('?')[0];
             if (currentUrl.endsWith('/')) {
                 currentUrl += 'index.html';
@@ -52,20 +69,30 @@
             document.getElementById('link-container').style.display = "block";
         });
 
-        // Jab User Screen Bheje, toh usko video tag me dikhana
         peer.on('call', (call) => {
-            call.answer(); // Call receive ki
+            log("📞 Incoming connection from User...");
+            call.answer(); 
+            log("✅ Call answered.");
+            
             call.on('stream', (remoteStream) => {
-                document.getElementById('remote-video').srcObject = remoteStream;
+                log("🎥 Video Stream Received! Playing now...");
+                const videoEl = document.getElementById('remote-video');
+                videoEl.srcObject = remoteStream;
+                videoEl.play().catch(e => log("⚠️ Autoplay block: " + e));
             });
+
+            call.on('error', (err) => log("❌ Call Error: " + err));
         });
 
-        // Copy Link Function
+        peer.on('error', (err) => {
+            log(`❌ PeerJS Error: ${err.type}`);
+        });
+
         function copyLink() {
             const copyText = document.getElementById("share-link");
             copyText.select();
             document.execCommand("copy");
-            alert("✅ Link Copied! Ab ise user ko bhej dein.");
+            alert("✅ Link Copied!");
         }
     </script>
 </body>
